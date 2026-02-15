@@ -356,7 +356,7 @@
         
         <div id="menu-view" class="view active">
             <div class="room-description">
-                Rozglądasz się po przytulnym pokoju. To miejsce wydaje się znajome, pełne przedmiotów, które niosą ze historię.<br><br><strong>Co chcesz sprawdzić?</strong>
+                Rozglądasz się po przytulnym pokoju. To miejsce wydaje się znajome, pełne przedmiotów, które niosą ze sobą historię.<br><br><strong>Co chcesz sprawdzić?</strong>
             </div>
 
             <div class="objects-grid" id="menu-grid"></div>
@@ -500,6 +500,7 @@
                 this.renderMenu();
                 this.updateBackground(null);
                 this.setupUIHiding();
+                this.preloadImages(); // Uruchomienie preloadingu
             },
 
             loadProgress: function() {
@@ -519,7 +520,27 @@
                 }
             },
 
-            // NOWA FUNKCJA: Obsługa ukrywania interfejsu
+            // Preloadowanie obrazów
+            preloadImages: function() {
+                // Zbieramy wszystkie unikalne linki do zdjęć
+                const imagesToLoad = [roomImage];
+                puzzles.forEach(p => {
+                    if (p.bgImage) imagesToLoad.push(p.bgImage);
+                    if (p.successImage) imagesToLoad.push(p.successImage);
+                });
+
+                // Usuwamy duplikaty i puste wartości (null/undefined)
+                const uniqueImages = [...new Set(imagesToLoad.filter(url => url))];
+
+                // Wymuszamy pobranie przez przeglądarkę
+                uniqueImages.forEach(url => {
+                    const img = new Image();
+                    img.src = url;
+                });
+                
+                console.log("Rozpoczęto preloadowanie " + uniqueImages.length + " zdjęć.");
+            },
+
             setupUIHiding: function() {
                 const app = document.getElementById('app');
                 const toggleBtn = document.getElementById('toggle-ui-btn');
