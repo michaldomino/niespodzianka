@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nasza Historia</title>
+    <style>
+        /* ========================================
+           STYLE CSS (DESIGN I RESPANSYWNOŚĆ)
+           ========================================
+        */
+        :root {
+            --primary-color: #d6336c; /* Romantyczny róż/czerwień */
+            --bg-overlay: rgba(0, 0, 0, 0.4); /* Przyciemnienie tła */
+            --glass-bg: rgba(255, 255, 255, 0.92); /* Tło paneli tekstowych */
+            --text-color: #2c3e50;
+            --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --success-color: #27ae60;
+            --error-color: #c0392b;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Blokada scrollowania strony */
+            font-family: var(--font-main);
+            background-color: #1a1a1a;
+            color: var(--text-color);
+        }
+
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+        }
+
+        /* Warstwa przyciemniająca tło dla lepszej czytelności */
+        #app::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-overlay);
+            z-index: 0;
+            transition: opacity 0.5s ease; /* Płynne znikanie przyciemnienia */
+        }
+
+        /* Kontenery widoków */
+        .view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: none; /* Domyślnie ukryte */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .view.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        /* Styl przycisku ukrywania interfejsu (Oko) */
+        #toggle-ui-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100; /* Zawsze na wierzchu interfejsu */
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: opacity 0.3s ease, transform 0.2s ease;
+        }
+        
+        #toggle-ui-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* Klasa dodawana do #app, gdy ukrywamy interfejs */
+        #app.ui-hidden .view,
+        #app.ui-hidden #toggle-ui-btn,
+        #app.ui-hidden .reset-btn-container {
+            opacity: 0;
+            pointer-events: none; /* Ważne: pozwala klikać "przez" elementy w tło */
+        }
+
+        #app.ui-hidden::before {
+            opacity: 0; /* Ukrywamy też przyciemnienie tła, by zdjęcie było wyraźne */
+        }
+
+        /* ========================================
+           WIDOK 1: MENU GŁÓWNE
+           ========================================
+        */
+        #menu-view {
+            justify-content: flex-start;
+            padding-top: 40px;
+            overflow-y: auto; 
+        }
+
+        .room-description {
+            background: var(--glass-bg);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 500px;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .objects-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+            padding-bottom: 60px;
+        }
+
+        .object-btn {
+            background: rgba(255, 255, 255, 0.85);
+            border: none;
+            padding: 20px 10px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s, background 0.3s;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: 80px;
+        }
+
+        .object-btn:active {
+            transform: scale(0.95);
+        }
+
+        .object-btn.solved {
+            background: rgba(255, 255, 255, 0.6);
+            color: #7f8c8d;
+            border: 2px solid var(--success-color);
+        }
+
+        .object-btn.solved::after {
+            content: '✓';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .object-btn.locked {
+            background: #bdc3c7;
+            color: #7f8c8d;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(1);
+        }
+
+        .object-btn.final-unlocked {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            animation: pulse 2s infinite;
+        }
+
+        /* ========================================
+           WIDOK 2: ZAGADKA
+           ========================================
+        */
+        .puzzle-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .narrative-box {
+            background: var(--glass-bg);
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 1rem;
+            line-height: 1.6;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .question-box {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid var(--primary-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .question-text {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .back-btn {
+            background-color: transparent;
+            color: white;
+            border: 2px solid white;
+            margin-top: 20px;
+        }
+
+        .error-msg {
+            color: var(--error-color);
+            font-weight: bold;
+            margin-top: 10px;
+            min-height: 24px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* ========================================
+           WIDOK 3: SUKCES
+           ========================================
+        */
+        .success-card {
+            background: var(--glass-bg);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .success-title {
+            color: var(--success-color);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .success-comment {
+            font-size: 1.2rem;
+            font-style: italic;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        /* Reset Button */
+        .reset-btn-container {
+            margin-top: 40px;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .reset-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.6);
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        /* Animacje */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes popUp {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(214, 51, 108, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(214, 51, 108, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(214, 51, 108, 0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <!-- Przycisk ukrywania interfejsu (globalny) -->
+        <button id="toggle-ui-btn" title="Ukryj tekst i zobacz zdjęcie">📷️</button>
+        
+        <div id="menu-view" class="view active">
+            <div class="room-description">
+                Rozglądasz się po przytulnym pokoju. To miejsce wydaje się znajome, pełne przedmiotów, które niosą ze historię.<br><br><strong>Co chcesz sprawdzić?</strong>
+            </div>
+
+            <div class="objects-grid" id="menu-grid"></div>
+
+            <div class="reset-btn-container">
+                <button class="reset-btn" onclick="game.resetProgress()">Zresetuj postęp gry</button>
+            </div>
+        </div>
+
+        <div id="puzzle-view" class="view">
+            <div class="puzzle-container">
+                <div class="narrative-box" id="puzzle-desc"></div>
+                
+                <div class="question-box">
+                    <span class="question-text" id="puzzle-question"></span>
+                    <input type="text" id="puzzle-input" placeholder="Wpisz odpowiedź..." autocomplete="off">
+                    <div class="error-msg" id="puzzle-error">To nie to słowo, spróbuj przypomnieć sobie...</div>
+                    <button class="action-btn" onclick="game.checkAnswer()">Sprawdź</button>
+                </div>
+
+                <button class="action-btn back-btn" onclick="game.showMenu()">Wróć do pokoju</button>
+            </div>
+        </div>
+
+        <div id="success-view" class="view">
+            <div class="success-card">
+                <h2 class="success-title" id="success-title">Brawo!</h2>
+                <p class="success-comment" id="success-comment"></p>
+                <button class="action-btn" onclick="game.showMenu()">Wróć do menu</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /* ========================================
+           KONFIGURACJA ZDJĘĆ
+           ========================================
+        */
+        
+        // TUTAJ WKLEJ LINK DO ZDJĘCIA POKOJU (TŁO GŁÓWNE)
+        // Jeśli zostawisz null, będzie użyty gradient.
+        const roomImage = "images/background.png";
+
+        const puzzles = [
+            {
+                id: 1,
+                name: "Tablica korkowa",
+                description: "Widzisz tablicę korkową, a na niej odwrócone zdjęcie z fotobudki ze studniówki.",
+                question: "Twoja sukienka i mój krawat miały wtedy taki sam kolor. Jaki to był kolor?",
+                answer: "kobaltowy",
+                successComment: "Byliśmy świetnymi partnerami do poloneza, ale na zostanie życiową parą musieliśmy jeszcze poczekać.",
+                bgImage: "images/1.png",
+                successImage: "images/studniowka.jpg"
+            },
+            {
+                id: 2,
+                name: "Koperta z PIK",
+                description: "Znajdujesz elegancką kopertę z PIKiem. Minęło 8 lat i znowu się spotkaliśmy.",
+                question: "Która to była rocznica szkoły (podaj liczbę)?",
+                answer: "150",
+                successComment: "Nie mieliśmy wtedy pojęcia, że tamto spotkanie zmieni wszystko.",
+                bgImage: "images/2.png",
+                successImage: "images/jubileusz.jpg"
+            },
+            {
+                id: 3,
+                name: "Telefon",
+                description: "Telefon wibruje. Widzisz powiadomienie z wiadomością otrzymaną po długim czasie.",
+                question: "Kiedy udało nam się usiąść naprzeciwko siebie po długim czasie, sytuacja wcale nie była... no właśnie. Jak nazywała się knajpa, w której się wtedy spotkaliśmy?",
+                answer: "absurdalna",
+                successComment: "Od tego momentu rozpoczęła się nasza wspólna przygoda.",
+                bgImage: "images/3.png",
+                successImage: "images/absurdalna.jpg"
+            },
+            {
+                id: 4,
+                name: "Bilet do Łodzi",
+                description: "Bilet na pociąg do Łodzi.",
+                question: "Nasz pierwszy wspólny wyjazd. Dzień po tym jak oficjalnie zostaliśmy parą, poszliśmy do kawiarni. Jakiego \"magicznego zaklęcia\" (nazwy lokalu) użyliśmy, żeby napić się tam kawy? Jakiego 'magicznego zaklęcia' (nazwy lokalu) użyliśmy, żeby napić się tam kawy?",
+                answer: "espresso patronom",
+                successComment: "To był nasz pierwszy pełny dzień bycia oficjalnie razem. Czułem się jakbym wypił Felix Felicis.",
+                bgImage: "images/4.png",
+                successImage: "images/lodz.jpg"
+            },
+            {
+                id: 5,
+                name: "Bursztyn",
+                description: "Piękny, nadmorski bursztyn.",
+                question: "Byliśmy nad morzem nie raz, ale jeden z nich był wyjątkowy, bo zamykał rok, od którego byliśmy razem. W jakim mieście o północy patrzyliśmy w niebo?",
+                answer: "gdańsk",
+                successComment: "Zaliczyliśmy wiele razem nadmorskich wyjazdów, ale ten był wyjątkowy.",
+                bgImage: "images/5.png",
+                successImage: "images/gdansk.jpg"
+            },
+            {
+                id: 6,
+                name: "Magnes z żółwiem",
+                description: "Widzisz pamiątkowy magnes z żółwiem i mapą Teneryfy na lodówkę. To był nasz pierwszy zagraniczny wyjazd i to z jakim rozmachem!",
+                question: "Jak się nazywała ta warstwowa kawa z likierem, którą tam piliśmy?",
+                answer: "barraquito",
+                successComment: "To był niesamowity wyjazd pełen przygód. Jeszcze czeka nas nie jeden taki!",
+                bgImage: "images/6.png",
+                successImage: "images/teneryfa.jpg"
+            },
+            {
+                id: 7,
+                name: "Paragon za gofry",
+                description: "Widzisz paragon za gofry. Przypomina Ci on wyjazd do Wicia (a może Wiciów? Wici?) kiedy świętowaliśmy Twoje urodziny i kiedy pierwszy raz pojechaliśmy na wakacje w powiększonym rodzinnym gronie. Pamiętasz ptaki, które latały nad plażą i miały tam swoje gniazdka?",
+                question: "Jaki to był ptak?",
+                answer: "jaskółka",
+                successComment: "To był wspaniały wyjazd, cieszę się, że mogliśmy go spędzić jak rodzina.",
+                bgImage: "images/7.png",
+                successImage: "images/wicie.jpg"
+            },
+            {
+                id: 8,
+                name: "Czerwona Koperta",
+                description: "",
+                question: "",
+                answer: "",
+                successComment: "Pamiętasz te puzzle, które układaliśmy do 3 w nocy w Augustowie? Powiedziałaś wtedy, że jak damy sobie radę z tymi puzzlami, to damy sobie radę ze wszystkim. I wiem, że tak będzie. Tak jak w Gdańsku pożegnaliśmy stary rok, tak zostawmy w przeszłości nasze problemy i otwórzmy nasz nowy wspólny wspaniały rozdział.",
+                bgImage: "images/8.png",
+                successImage: null,
+                isFinale: true
+            }
+        ];
+
+        /* ========================================
+           SILNIK GRY
+           ========================================
+        */
+        
+        const game = {
+            solvedPuzzles: [],
+            currentPuzzleId: null,
+            defaultGradient: "linear-gradient(to bottom, #232526, #414345)",
+
+            init: function() {
+                this.loadProgress();
+                this.renderMenu();
+                this.updateBackground(null);
+                this.setupUIHiding();
+            },
+
+            loadProgress: function() {
+                const saved = localStorage.getItem('naszaHistoriaSolved');
+                if (saved) this.solvedPuzzles = JSON.parse(saved);
+            },
+
+            saveProgress: function() {
+                localStorage.setItem('naszaHistoriaSolved', JSON.stringify(this.solvedPuzzles));
+            },
+
+            resetProgress: function() {
+                if(confirm("Czy na pewno chcesz zresetować całą historię?")) {
+                    this.solvedPuzzles = [];
+                    localStorage.removeItem('naszaHistoriaSolved');
+                    this.renderMenu();
+                }
+            },
+
+            // NOWA FUNKCJA: Obsługa ukrywania interfejsu
+            setupUIHiding: function() {
+                const app = document.getElementById('app');
+                const toggleBtn = document.getElementById('toggle-ui-btn');
+
+                // Kliknięcie w oko ukrywa UI
+                toggleBtn.onclick = (e) => {
+                    e.stopPropagation(); // Zapobiega natychmiastowemu przywróceniu
+                    app.classList.add('ui-hidden');
+                };
+
+                // Kliknięcie w tło (gdy UI jest ukryte) przywraca UI
+                app.onclick = () => {
+                    if (app.classList.contains('ui-hidden')) {
+                        app.classList.remove('ui-hidden');
+                    }
+                };
+            },
+
+            renderMenu: function() {
+                const grid = document.getElementById('menu-grid');
+                grid.innerHTML = '';
+                
+                const standardPuzzlesCount = 7;
+                let solvedCount = 0;
+                for(let i=1; i<=standardPuzzlesCount; i++) {
+                    if(this.solvedPuzzles.includes(i)) solvedCount++;
+                }
+                const finaleUnlocked = (solvedCount === standardPuzzlesCount);
+
+                puzzles.forEach(puzzle => {
+                    const btn = document.createElement('button');
+                    btn.className = 'object-btn';
+                    btn.innerText = puzzle.name;
+                    
+                    if (this.solvedPuzzles.includes(puzzle.id)) btn.classList.add('solved');
+
+                    if (puzzle.id === 8) {
+                        if (!finaleUnlocked) {
+                            btn.innerText = "??? (Zablokowane)";
+                            btn.classList.add('locked');
+                        } else {
+                            btn.classList.add('final-unlocked');
+                        }
+                    }
+
+                    btn.onclick = () => {
+                        if (puzzle.id === 8 && !finaleUnlocked) return;
+                        this.openPuzzle(puzzle.id);
+                    };
+
+                    grid.appendChild(btn);
+                });
+
+                this.switchView('menu-view');
+            },
+
+            openPuzzle: function(id) {
+                const puzzle = puzzles.find(p => p.id === id);
+                this.currentPuzzleId = id;
+                this.updateBackground(puzzle.bgImage);
+
+                if (puzzle.isFinale) {
+                    this.showSuccess(true);
+                    return;
+                }
+
+                document.getElementById('puzzle-desc').innerText = puzzle.description;
+                document.getElementById('puzzle-question').innerText = puzzle.question;
+                
+                const input = document.getElementById('puzzle-input');
+                input.value = '';
+                document.getElementById('puzzle-error').style.opacity = '0';
+
+                if (this.solvedPuzzles.includes(id)) {
+                    this.showSuccess(false);
+                } else {
+                    this.switchView('puzzle-view');
+                }
+            },
+
+            checkAnswer: function() {
+                const puzzle = puzzles.find(p => p.id === this.currentPuzzleId);
+                const input = document.getElementById('puzzle-input');
+                const errorMsg = document.getElementById('puzzle-error');
+                
+                if (input.value.toLowerCase().trim() === puzzle.answer.toLowerCase().trim()) {
+                    if (!this.solvedPuzzles.includes(this.currentPuzzleId)) {
+                        this.solvedPuzzles.push(this.currentPuzzleId);
+                        this.saveProgress();
+                    }
+                    this.showSuccess(false);
+                } else {
+                    errorMsg.style.opacity = '1';
+                    input.style.borderColor = 'var(--error-color)';
+                    setTimeout(() => input.style.borderColor = '#ddd', 500);
+                }
+            },
+
+            showSuccess: function(isFinale) {
+                const puzzle = puzzles.find(p => p.id === this.currentPuzzleId);
+                if (puzzle.successImage) this.updateBackground(puzzle.successImage);
+
+                document.getElementById('success-title').innerText = isFinale ? "Walentynki" : "Świetnie!";
+                document.getElementById('success-comment').innerText = puzzle.successComment;
+                this.switchView('success-view');
+            },
+
+            showMenu: function() {
+                this.updateBackground(null);
+                this.renderMenu();
+            },
+
+            switchView: function(viewId) {
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                document.getElementById(viewId).classList.add('active');
+            },
+
+            updateBackground: function(imageUrl) {
+                const app = document.getElementById('app');
+                const finalUrl = imageUrl || roomImage;
+                
+                if (finalUrl) {
+                    app.style.backgroundImage = `url('${finalUrl}')`;
+                } else {
+                    app.style.backgroundImage = this.defaultGradient;
+                }
+            }
+        };
+
+        window.onload = () => game.init();
+    </script>
+</body>
+</html>
